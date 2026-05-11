@@ -15,6 +15,15 @@ BASE_URL = "https://api.football-data.org/v4"
 HEADERS = {"X-Auth-Token": API_KEY}
 RAW_DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 
+# Ligues domestiques couvertes par l'API (tier gratuit)
+DOMESTIC_LEAGUES = {
+    "PL":  "Premier League",
+    "PD":  "Primera Division",
+    "BL1": "Bundesliga",
+    "SA":  "Serie A",
+    "FL1": "Ligue 1",
+}
+
 
 def _get(endpoint: str, params: dict = None) -> dict:
     """GET sur l'API football-data.org avec gestion du rate limit."""
@@ -127,7 +136,50 @@ def scrape_ucl_standings(season: int = 2024) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 4. Sauvegarde
+# 4. Classements ligues domestiques
+# ──────────────────────────────────────────────
+
+def scrape_domestic_standings(season: int = 2024) -> pd.DataFrame:
+    """
+    Récupère les classements finaux des 5 grands championnats européens.
+    Utilisé comme proxy de la qualité globale d'une équipe.
+    Les équipes hors top 5 (Ajax, Sporting, etc.) ne seront pas couvertes.
+    """
+    rows = []
+    for code, league_name in DOMESTIC_LEAGUES.items():
+        print(f"Scraping {league_name} ({code})...")
+        try:
+            data = _get(f"competitions/{code}/standings", params={"season": season})
+        except Exception as e:
+            print(f"  Indisponible ({e}), ignoré.")
+            continue
+
+        for group in data.get("standings", []):
+            if group.get("type") != "TOTAL":
+                continue
+            for entry in group.get("table", []):
+                rows.append({
+                    "league":          code,
+                    "league_name":     league_name,
+                    "team_id":         entry["team"]["id"],
+                    "team":            entry["team"]["name"],
+                    "position":        entry["position"],
+                    "played":          entry["playedGames"],
+                    "won":             entry["won"],
+                    "draw":            entry["draw"],
+                    "lost":            entry["lost"],
+                    "goals_for":       entry["goalsFor"],
+                    "goals_against":   entry["goalsAgainst"],
+                    "goal_diff":       entry["goalDifference"],
+                    "points":          entry["points"],
+                })
+        time.sleep(1)  # sécurité rate limit entre chaque ligue
+
+    return pd.DataFrame(rows)
+
+
+# ──────────────────────────────────────────────
+# 5. Sauvegarde
 # ──────────────────────────────────────────────
 
 def save_raw(df: pd.DataFrame, filename: str) -> None:
@@ -155,9 +207,14 @@ if __name__ == "__main__":
     print(teams.head())
     save_raw(teams, "ucl_teams.csv")
 
-    print("\n=== Classement ===")
+    print("\n=== Classement UCL ===")
     standings = scrape_ucl_standings(season)
     print(standings.head())
     save_raw(standings, "ucl_standings.csv")
+
+    print("\n=== Classements ligues domestiques ===")
+    domestic = scrape_domestic_standings(season)
+    print(domestic.head())
+    save_raw(domestic, "domestic_standings.csv")
 
     print("\nScraping terminé.")

@@ -44,6 +44,13 @@ def load_standings() -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def load_domestic_standings() -> pd.DataFrame:
+    path = os.path.join(RAW_PATH, "domestic_standings.csv")
+    if not os.path.exists(path):
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
 # ──────────────────────────────────────────────
 # 1. Variable cible
 # ──────────────────────────────────────────────
@@ -204,7 +211,43 @@ def add_standings_features(df: pd.DataFrame, standings: pd.DataFrame) -> pd.Data
 
 
 # ──────────────────────────────────────────────
-# 4. Features différentielles (forme)
+# 4. Features ligue domestique
+# ──────────────────────────────────────────────
+
+def add_domestic_features(df: pd.DataFrame, domestic: pd.DataFrame) -> pd.DataFrame:
+    """
+    Joint les stats de ligue domestique pour chaque équipe UCL.
+    Jointure par nom d'équipe (même API → noms cohérents).
+    Les équipes hors top 5 championnats auront des valeurs à 0.
+    Pas de restriction de phase : les stats domestiques ne constituent
+    pas une fuite de données pour les matchs UCL.
+    """
+    dom_stats = ["position", "points", "goal_diff"]
+
+    for col in dom_stats:
+        df[f"home_domestic_{col}"] = 0
+        df[f"away_domestic_{col}"] = 0
+
+    if domestic.empty:
+        return df
+
+    dom_idx = domestic.set_index("team")
+
+    for side in ("home", "away"):
+        team_col = f"{side}_team"
+        for col in dom_stats:
+            df[f"{side}_domestic_{col}"] = (
+                df[team_col].map(dom_idx[col]).fillna(0)
+            )
+
+    df["diff_domestic_pts"] = df["home_domestic_points"] - df["away_domestic_points"]
+    df["diff_domestic_pos"] = df["home_domestic_position"] - df["away_domestic_position"]
+    df["diff_domestic_gd"] = df["home_domestic_goal_diff"] - df["away_domestic_goal_diff"]
+    return df
+
+
+# ──────────────────────────────────────────────
+# 5. Features différentielles
 # ──────────────────────────────────────────────
 
 def add_diff_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -239,9 +282,11 @@ def build_features() -> pd.DataFrame:
     """
     df = load_matches()
     standings = load_standings()
+    domestic = load_domestic_standings()
     df = add_result(df)
     df = add_form_features(df, n=5)
     df = add_standings_features(df, standings)
+    df = add_domestic_features(df, domestic)
     df = add_diff_features(df)
     df = add_phase_encoding(df)
     return df

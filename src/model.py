@@ -27,10 +27,14 @@ FEATURE_COLS = [
     "home_form_at_home_gf", "home_form_at_home_ga", "home_form_at_home_pts",
     "away_form_at_away_gf", "away_form_at_away_ga", "away_form_at_away_pts",
     "diff_form_ctx_pts", "diff_form_ctx_gf", "diff_form_ctx_ga",
-    # Classement phase de ligue (knockout uniquement)
+    # Classement phase de ligue UCL (knockout uniquement)
     "home_standing_position", "home_standing_points", "home_standing_goal_diff",
     "away_standing_position", "away_standing_points", "away_standing_goal_diff",
     "diff_standing_pts", "diff_standing_pos", "diff_standing_gd",
+    # Classement ligue domestique (top 5 championnats)
+    "home_domestic_position", "home_domestic_points", "home_domestic_goal_diff",
+    "away_domestic_position", "away_domestic_points", "away_domestic_goal_diff",
+    "diff_domestic_pts", "diff_domestic_pos", "diff_domestic_gd",
     "phase_encoded",
 ]
 TARGET = "result"
