@@ -17,11 +17,21 @@ PHASE_ORDER = {
     "FINAL": 6,
 }
 
+# Phases pour lesquelles les standings de la phase de ligue sont disponibles et utilisables
+KNOCKOUT_PHASES = {"PLAYOFFS", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"}
+
 
 def load_matches() -> pd.DataFrame:
     df = pd.read_csv(os.path.join(RAW_PATH, "ucl_matches.csv"), parse_dates=["date"])
     df = df.sort_values("date").reset_index(drop=True)
     return df
+
+
+def load_standings() -> pd.DataFrame:
+    path = os.path.join(RAW_PATH, "ucl_standings.csv")
+    if not os.path.exists(path):
+        return pd.DataFrame()
+    return pd.read_csv(path)
 
 
 # ──────────────────────────────────────────────
@@ -131,7 +141,45 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 3. Features différentielles
+# 3. Features de classement (phase de ligue)
+# ──────────────────────────────────────────────
+
+def add_standings_features(df: pd.DataFrame, standings: pd.DataFrame) -> pd.DataFrame:
+    """
+    Joint les stats de classement de la phase de ligue pour chaque équipe.
+    Uniquement pour les phases knockout (après la phase de ligue) afin d'éviter
+    toute fuite de données : le classement final n'est pas connu pendant la phase de ligue.
+    Features à 0 pour les matchs de phase de ligue.
+    """
+    standing_cols = ["position", "points", "goal_diff", "goals_for", "goals_against"]
+
+    for col in standing_cols:
+        df[f"home_standing_{col}"] = 0
+        df[f"away_standing_{col}"] = 0
+
+    if standings.empty:
+        return df
+
+    standings_idx = standings.set_index("team")
+    knockout_mask = df["phase"].isin(KNOCKOUT_PHASES)
+
+    for side in ("home", "away"):
+        team_col = f"{side}_team"
+        for col in standing_cols:
+            df.loc[knockout_mask, f"{side}_standing_{col}"] = (
+                df.loc[knockout_mask, team_col]
+                .map(standings_idx[col])
+                .fillna(0)
+            )
+
+    df["diff_standing_pts"] = df["home_standing_points"] - df["away_standing_points"]
+    df["diff_standing_pos"] = df["home_standing_position"] - df["away_standing_position"]
+    df["diff_standing_gd"] = df["home_standing_goal_diff"] - df["away_standing_goal_diff"]
+    return df
+
+
+# ──────────────────────────────────────────────
+# 4. Features différentielles (forme)
 # ──────────────────────────────────────────────
 
 def add_diff_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -143,7 +191,7 @@ def add_diff_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 4. Encodage de la phase
+# 5. Encodage de la phase
 # ──────────────────────────────────────────────
 
 def add_phase_encoding(df: pd.DataFrame) -> pd.DataFrame:
@@ -153,7 +201,7 @@ def add_phase_encoding(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 5. Pipeline complet
+# 6. Pipeline complet
 # ──────────────────────────────────────────────
 
 def build_features() -> pd.DataFrame:
@@ -162,8 +210,10 @@ def build_features() -> pd.DataFrame:
     un DataFrame prêt pour l'entraînement du modèle.
     """
     df = load_matches()
+    standings = load_standings()
     df = add_result(df)
     df = add_form_features(df, n=5)
+    df = add_standings_features(df, standings)
     df = add_diff_features(df)
     df = add_phase_encoding(df)
     return df

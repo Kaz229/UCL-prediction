@@ -22,6 +22,9 @@ FEATURE_COLS = [
     "home_form_gf", "home_form_ga", "home_form_pts",
     "away_form_gf", "away_form_ga", "away_form_pts",
     "diff_form_pts", "diff_form_gf", "diff_form_ga",
+    "home_standing_position", "home_standing_points", "home_standing_goal_diff",
+    "away_standing_position", "away_standing_points", "away_standing_goal_diff",
+    "diff_standing_pts", "diff_standing_pos", "diff_standing_gd",
     "phase_encoded",
 ]
 TARGET = "result"
