@@ -24,6 +24,15 @@ DOMESTIC_LEAGUES = {
     "FL1": "Ligue 1",
 }
 
+# Saisons historiques UCL à collecter (en plus de la saison courante)
+HISTORICAL_SEASONS = [2019, 2020, 2021, 2022, 2023]
+
+# Normalisation des noms de phase : l'UCL a changé de format en 2024
+PHASE_NORMALIZE = {
+    "GROUP_STAGE": "LEAGUE_STAGE",
+    "ROUND_OF_16": "LAST_16",
+}
+
 
 def _get(endpoint: str, params: dict = None) -> dict:
     """GET sur l'API football-data.org avec gestion du rate limit."""
@@ -136,7 +145,34 @@ def scrape_ucl_standings(season: int = 2024) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 4. Classements ligues domestiques
+# 4. Historique UCL multi-saisons
+# ──────────────────────────────────────────────
+
+def scrape_ucl_history(seasons: list = None) -> pd.DataFrame:
+    """
+    Collecte les matchs UCL pour plusieurs saisons passées et les combine.
+    Normalise les noms de phases pour unifier l'ancien et le nouveau format.
+    Ajoute une colonne 'season' pour identifier chaque saison.
+    """
+    if seasons is None:
+        seasons = HISTORICAL_SEASONS
+
+    all_dfs = []
+    for season in seasons:
+        try:
+            df = scrape_ucl_matches(season)
+            df["season"] = season
+            df["phase"] = df["phase"].replace(PHASE_NORMALIZE)
+            all_dfs.append(df)
+        except Exception as e:
+            print(f"  Erreur saison {season}: {e}")
+        time.sleep(1)
+
+    return pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
+
+
+# ──────────────────────────────────────────────
+# 5. Classements ligues domestiques
 # ──────────────────────────────────────────────
 
 def scrape_domestic_standings(season: int = 2024) -> pd.DataFrame:
@@ -179,7 +215,7 @@ def scrape_domestic_standings(season: int = 2024) -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────────
-# 5. Sauvegarde
+# 6. Sauvegarde
 # ──────────────────────────────────────────────
 
 def save_raw(df: pd.DataFrame, filename: str) -> None:
@@ -191,30 +227,34 @@ def save_raw(df: pd.DataFrame, filename: str) -> None:
 
 
 # ──────────────────────────────────────────────
-# 5. Pipeline principal
+# 7. Pipeline principal
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
     season = 2024
 
-    print("\n=== Matchs UCL ===")
+    print("\n=== Matchs UCL (saison courante) ===")
     matches = scrape_ucl_matches(season)
-    print(matches.head())
+    matches["season"] = season
+    matches["phase"] = matches["phase"].replace(PHASE_NORMALIZE)
     save_raw(matches, "ucl_matches.csv")
+
+    print("\n=== Matchs UCL (historique 2019-2023) ===")
+    history = scrape_ucl_history(HISTORICAL_SEASONS)
+    all_matches = pd.concat([history, matches], ignore_index=True).sort_values("date")
+    print(f"Total : {len(all_matches)} matchs sur {all_matches['season'].nunique()} saisons")
+    save_raw(all_matches, "ucl_matches_all.csv")
 
     print("\n=== Équipes ===")
     teams = scrape_ucl_teams(season)
-    print(teams.head())
     save_raw(teams, "ucl_teams.csv")
 
-    print("\n=== Classement UCL ===")
+    print("\n=== Classement UCL (saison courante) ===")
     standings = scrape_ucl_standings(season)
-    print(standings.head())
     save_raw(standings, "ucl_standings.csv")
 
     print("\n=== Classements ligues domestiques ===")
     domestic = scrape_domestic_standings(season)
-    print(domestic.head())
     save_raw(domestic, "domestic_standings.csv")
 
     print("\nScraping terminé.")

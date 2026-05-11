@@ -32,7 +32,14 @@ PHASE_WINDOW = {
 
 
 def load_matches() -> pd.DataFrame:
-    df = pd.read_csv(os.path.join(RAW_PATH, "ucl_matches.csv"), parse_dates=["date"])
+    """
+    Charge les matchs UCL. Préfère ucl_matches_all.csv (multi-saisons) si disponible,
+    sinon repli sur ucl_matches.csv (saison courante uniquement).
+    """
+    all_path = os.path.join(RAW_PATH, "ucl_matches_all.csv")
+    single_path = os.path.join(RAW_PATH, "ucl_matches.csv")
+    path = all_path if os.path.exists(all_path) else single_path
+    df = pd.read_csv(path, parse_dates=["date"])
     df = df.sort_values("date").reset_index(drop=True)
     return df
 
