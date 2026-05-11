@@ -115,6 +115,8 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
     La fenêtre rolling s'adapte à la phase via PHASE_WINDOW (5 en ligue, 3 en knockout).
     """
     history = {}
+    history_home = {}  # matchs joués en tant qu'équipe à domicile
+    history_away = {}  # matchs joués en tant qu'équipe à l'extérieur
     rows = []
 
     for _, row in df.iterrows():
@@ -122,9 +124,14 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
         hg, ag = row["home_goals"], row["away_goals"]
         window = PHASE_WINDOW.get(row["phase"], n)
 
-        # Stats avant ce match
+        # Stats globales avant ce match
         home_stats = _rolling_stats(history.get(home, []), window)
         away_stats = _rolling_stats(history.get(away, []), window)
+
+        # Stats contextuelles : forme à domicile de l'équipe domicile,
+        # forme à l'extérieur de l'équipe visiteuse
+        home_at_home_stats = _rolling_stats(history_home.get(home, []), window)
+        away_at_away_stats = _rolling_stats(history_away.get(away, []), window)
 
         rows.append({
             **row.to_dict(),
@@ -134,9 +141,15 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
             "away_form_gf": away_stats["gf"],
             "away_form_ga": away_stats["ga"],
             "away_form_pts": away_stats["pts"],
+            "home_form_at_home_gf": home_at_home_stats["gf"],
+            "home_form_at_home_ga": home_at_home_stats["ga"],
+            "home_form_at_home_pts": home_at_home_stats["pts"],
+            "away_form_at_away_gf": away_at_away_stats["gf"],
+            "away_form_at_away_ga": away_at_away_stats["ga"],
+            "away_form_at_away_pts": away_at_away_stats["pts"],
         })
 
-        # Mise à jour de l'historique après le match
+        # Mise à jour des historiques après le match
         if hg > ag:
             hp, ap = 3, 0
         elif hg == ag:
@@ -144,10 +157,10 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
         else:
             hp, ap = 0, 3
 
-        for team, gf, ga, pts in [(home, hg, ag, hp), (away, ag, hg, ap)]:
-            if team not in history:
-                history[team] = []
-            history[team].append((row["date"], gf, ga, pts))
+        history.setdefault(home, []).append((row["date"], hg, ag, hp))
+        history.setdefault(away, []).append((row["date"], ag, hg, ap))
+        history_home.setdefault(home, []).append((row["date"], hg, ag, hp))
+        history_away.setdefault(away, []).append((row["date"], ag, hg, ap))
 
     return pd.DataFrame(rows)
 
@@ -199,6 +212,9 @@ def add_diff_features(df: pd.DataFrame) -> pd.DataFrame:
     df["diff_form_pts"] = df["home_form_pts"] - df["away_form_pts"]
     df["diff_form_gf"] = df["home_form_gf"] - df["away_form_gf"]
     df["diff_form_ga"] = df["home_form_ga"] - df["away_form_ga"]
+    df["diff_form_ctx_pts"] = df["home_form_at_home_pts"] - df["away_form_at_away_pts"]
+    df["diff_form_ctx_gf"] = df["home_form_at_home_gf"] - df["away_form_at_away_gf"]
+    df["diff_form_ctx_ga"] = df["home_form_at_home_ga"] - df["away_form_at_away_ga"]
     return df
 
 
