@@ -20,6 +20,16 @@ PHASE_ORDER = {
 # Phases pour lesquelles les standings de la phase de ligue sont disponibles et utilisables
 KNOCKOUT_PHASES = {"PLAYOFFS", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"}
 
+# Fenêtre rolling adaptée à chaque phase : 3 matchs en knockout pour privilégier la forme récente
+PHASE_WINDOW = {
+    "LEAGUE_STAGE": 5,
+    "PLAYOFFS": 3,
+    "LAST_16": 3,
+    "QUARTER_FINALS": 3,
+    "SEMI_FINALS": 3,
+    "FINAL": 3,
+}
+
 
 def load_matches() -> pd.DataFrame:
     df = pd.read_csv(os.path.join(RAW_PATH, "ucl_matches.csv"), parse_dates=["date"])
@@ -102,6 +112,7 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
     """
     Ajoute les features de forme récente pour chaque équipe avant chaque match.
     Les stats sont calculées sur les matchs PRÉCÉDANT le match courant.
+    La fenêtre rolling s'adapte à la phase via PHASE_WINDOW (5 en ligue, 3 en knockout).
     """
     history = {}
     rows = []
@@ -109,10 +120,11 @@ def add_form_features(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
     for _, row in df.iterrows():
         home, away = row["home_team"], row["away_team"]
         hg, ag = row["home_goals"], row["away_goals"]
+        window = PHASE_WINDOW.get(row["phase"], n)
 
         # Stats avant ce match
-        home_stats = _rolling_stats(history.get(home, []), n)
-        away_stats = _rolling_stats(history.get(away, []), n)
+        home_stats = _rolling_stats(history.get(home, []), window)
+        away_stats = _rolling_stats(history.get(away, []), window)
 
         rows.append({
             **row.to_dict(),
