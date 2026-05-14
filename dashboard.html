@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UCL Prediction Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-card: #1c2128;
+    --border: #30363d;
+    --border-light: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --blue: #2563eb;
+    --blue-light: #3b82f6;
+    --blue-dim: rgba(37,99,235,0.15);
+    --gold: #d97706;
+    --gold-light: #f59e0b;
+    --gold-dim: rgba(217,119,6,0.15);
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --purple: #a855f7;
+    --sidebar-width: 220px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 20px 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--blue), var(--gold));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .logo-text { line-height: 1.2; }
+  .logo-title { font-weight: 700; font-size: 15px; color: var(--text-primary); }
+  .logo-sub { font-size: 11px; color: var(--text-muted); }
+
+  .sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 8px 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 2px;
+    user-select: none;
+  }
+
+  .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+  .nav-item.active { background: var(--blue-dim); color: var(--blue-light); }
+  .nav-item.active .nav-icon { color: var(--blue-light); }
+
+  .nav-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .sidebar-footer span { color: var(--gold-light); font-weight: 600; }
+
+  /* ── Main Content ── */
+  #main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .section { display: none; padding: 28px 32px; min-height: 100vh; }
+  .section.active { display: block; }
+
+  /* ── Section Header ── */
+  .section-header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .section-sub { font-size: 13px; color: var(--text-muted); }
+
+  /* ── KPI Cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+
+  .kpi-card:hover { transform: translateY(-2px); border-color: var(--blue); }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--gold));
+  }
+
+  .kpi-icon { font-size: 22px; margin-bottom: 10px; }
+  .kpi-value { font-size: 28px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+  .kpi-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title-icon { color: var(--blue-light); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+  /* ── Model Card ── */
+  .model-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .model-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+  }
+
+  .model-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .accuracy-display {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .accuracy-value { font-size: 36px; font-weight: 800; color: var(--blue-light); }
+  .accuracy-label { font-size: 13px; color: var(--text-muted); }
+
+  .feature-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .feature-tag {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .feature-tag .count { font-weight: 700; color: var(--blue-light); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    background: var(--bg-tertiary);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+  }
+
+  thead th.sortable { cursor: pointer; }
+  thead th.sortable:hover { color: var(--text-primary); background: var(--border); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.1s;
+  }
+
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .td-team { color: var(--text-primary); font-weight: 600; }
+  .td-num { font-variant-numeric: tabular-nums; }
+
+  /* ── Phase Tags ── */
+  .phase-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .phase-LEAGUE_STAGE { background: rgba(37,99,235,0.2); color: #60a5fa; border: 1px solid rgba(37,99,235,0.4); }
+  .phase-PLAYOFFS { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.4); }
+  .phase-ROUND_OF_16 { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid rgba(249,115,22,0.4); }
+  .phase-QUARTER_FINALS { background: rgba(249,115,22,0.25); color: #fb923c; border: 1px solid rgba(249,115,22,0.5); }
+  .phase-SEMI_FINALS { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+  .phase-FINAL { background: var(--gold-dim); color: var(--gold-light); border: 1px solid var(--gold); }
+
+  /* ── Result dots ── */
+  .result-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-W { background: var(--green); }
+  .dot-D { background: var(--yellow); }
+  .dot-L { background: var(--red); }
+
+  .result-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .badge-W { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge-D { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .badge-L { background: rgba(239,68,68,0.2); color: var(--red); }
+
+  .form-dots { display: flex; gap: 4px; align-items: center; }
+
+  /* ── Prediction Section ── */
+  .prediction-header {
+    position: relative;
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 40%, #0f172a 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .prediction-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(37,99,235,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 50%, rgba(217,119,6,0.08) 0%, transparent 50%);
+  }
+
+  .star-pattern {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .star {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    animation: twinkle var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.3); }
+  }
+
+  .prediction-title {
+    position: relative;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+  }
+
+  .prediction-main-title {
+    position: relative;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .prediction-sub {
+    position: relative;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ── Probability Bars ── */
+  .prob-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .prob-item {
+    display: grid;
+    grid-template-columns: 28px 180px 1fr 52px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .prob-rank { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .prob-name { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prob-bar-wrap { height: 18px; background: var(--bg-tertiary); border-radius: 9px; overflow: hidden; position: relative; }
+
+  .prob-bar {
+    height: 100%;
+    border-radius: 9px;
+    width: 0;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .prob-bar.gold { background: linear-gradient(90deg, var(--gold), var(--gold-light)); box-shadow: 0 0 12px rgba(217,119,6,0.4); }
+  .prob-bar.blue { background: linear-gradient(90deg, var(--blue), var(--blue-light)); }
+
+  .prob-pct { font-size: 13px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ── Bracket ── */
+  .bracket-container {
+    overflow-x: auto;
+    padding: 16px 0;
+  }
+
+  .bracket {
+    display: flex;
+    gap: 0;
+    min-width: 700px;
+    align-items: center;
+  }
+
+  .bracket-round {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex: 1;
+  }
+
+  .bracket-round-title {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .bracket-matches { display: flex; flex-direction: column; gap: 16px; justify-content: space-around; flex: 1; }
+
+  .bracket-match {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+
+  .bracket-match:hover { border-color: var(--blue); }
+
+  .bracket-team {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+
+  .bracket-team:first-child { border-bottom: 1px solid var(--border-light); }
+  .bracket-team.winner { color: var(--text-primary); background: rgba(37,99,235,0.1); }
+  .bracket-team.loser { color: var(--text-muted); }
+
+  .bracket-score {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    min-width: 16px;
+    text-align: center;
+  }
+
+  .bracket-final .bracket-match { border-color: var(--gold); }
+  .bracket-final .bracket-team.winner { background: var(--gold-dim); color: var(--gold-light); }
+
+  .bracket-connector {
+    width: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── Team Explorer ── */
+  .team-selector-wrap {
+    margin-bottom: 20px;
+  }
+
+  select {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    min-width: 260px;
+    transition: border-color 0.15s;
+  }
+
+  select:hover, select:focus { border-color: var(--blue); }
+
+  .team-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .team-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), #1e40af);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+    letter-spacing: -1px;
+    box-shadow: 0 0 20px rgba(37,99,235,0.3);
+  }
+
+  .team-info-name { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+  .team-info-meta { font-size: 13px; color: var(--text-muted); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+
+  .stat-cell-value { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+  .stat-cell-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; }
+
+  .chart-container { position: relative; height: 220px; }
+
+  /* ── Standings ── */
+  .phase-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .filter-btn:hover { border-color: var(--blue); color: var(--text-primary); }
+  .filter-btn.active { background: var(--blue-dim); border-color: var(--blue); color: var(--blue-light); }
+
+  .sort-indicator { margin-left: 4px; opacity: 0.6; }
+  .sort-indicator.active { opacity: 1; color: var(--blue-light); }
+
+  tr.highlighted td { background: rgba(37,99,235,0.06); }
+  tr.highlighted td.td-team { color: var(--blue-light); }
+
+  .pos-gold { color: var(--gold-light); font-weight: 800; }
+  .pos-silver { color: #9ca3af; font-weight: 700; }
+  .pos-bronze { color: #b45309; font-weight: 700; }
+
+  /* ── Simulator ── */
+  .sim-teams {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .vs-label {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-muted);
+  }
+
+  .sim-select-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .sim-select-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sim-select-wrap select { width: 100%; }
+
+  .predict-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--blue), #1e40af);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+  }
+
+  .predict-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(37,99,235,0.4); }
+  .predict-btn:active { transform: translateY(0); }
+
+  .result-card {
+    background: linear-gradient(135deg, #0f172a, #1a1f2e);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 28px;
+    display: none;
+    animation: fadeInUp 0.4s ease;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card.visible { display: block; }
+
+  .result-outcome {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--gold-light);
+    text-align: center;
+    margin-bottom: 24px;
+    text-shadow: 0 0 20px rgba(217,119,6,0.3);
+  }
+
+  .sim-prob-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+
+  .sim-prob-row { display: grid; grid-template-columns: 160px 1fr 48px; gap: 12px; align-items: center; }
+  .sim-prob-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+  .sim-bar-wrap { height: 16px; background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; }
+
+  .sim-bar {
+    height: 100%;
+    border-radius: 8px;
+    width: 0;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sim-bar-home { background: linear-gradient(90deg, var(--blue), var(--blue-light)); }
+  .sim-bar-draw { background: linear-gradient(90deg, var(--yellow), #ca8a04); }
+  .sim-bar-away { background: linear-gradient(90deg, var(--orange), #ea580c); }
+
+  .sim-pct { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; color: var(--text-primary); }
+
+  .confidence-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 16px;
+  }
+
+  .conf-high { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .conf-medium { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .conf-low { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+  .features-comparison { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .features-comparison th {
+    background: var(--bg-tertiary);
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+  }
+
+  .features-comparison td {
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .feat-better { color: var(--green); font-weight: 700; }
+
+  .error-msg {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .stat-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">
+      <div class="logo-icon">UCL</div>
+      <div class="logo-text">
+        <div class="logo-title">UCL Prediction</div>
+        <div class="logo-sub">ML Dashboard 2024/25</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Navigation</div>
+    <div class="nav-item active" onclick="showSection('overview')">
+      <span class="nav-icon">◎</span>Vue d'ensemble
+    </div>
+    <div class="nav-item" onclick="showSection('prediction')">
+      <span class="nav-icon">★</span>Prédiction
+    </div>
+    <div class="nav-item" onclick="showSection('teams')">
+      <span class="nav-icon">◈</span>Équipes
+    </div>
+    <div class="nav-item" onclick="showSection('standings')">
+      <span class="nav-icon">≡</span>Classement UCL
+    </div>
+    <div class="nav-item" onclick="showSection('simulator')">
+      <span class="nav-icon">⚡</span>Simulateur
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    Modèle : <span>Gradient Boosting</span><br>
+    Accuracy : <span>61.4%</span>
+  </div>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main id="main">
+
+  <!-- ── Section 1: Vue d'ensemble ── -->
+  <section id="overview" class="section active">
+    <div class="section-header">
+      <div class="section-title">Vue d'ensemble</div>
+      <div class="section-sub">Résumé du projet de prédiction UCL 2024/25 par Machine Learning</div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon">🏆</div>
+        <div class="kpi-value">32</div>
+        <div class="kpi-label">Équipes analysées</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">⚽</div>
+        <div class="kpi-value">748</div>
+        <div class="kpi-label">Matchs d'entraînement</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">📅</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-label">Saisons couvertes</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">📐</div>
+        <div class="kpi-value">37</div>
+        <div class="kpi-label">Features du modèle</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="model-card">
+        <div class="model-badge">⚡ Meilleur modèle</div>
+        <div class="model-name">Gradient Boosting</div>
+        <div class="accuracy-display">
+          <div class="accuracy-value">61.4%</div>
+          <div class="accuracy-label">CV Accuracy (5-fold)</div>
+        </div>
+        <div style="margin-bottom:12px; font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Répartition des features</div>
+        <div class="feature-tags">
+          <div class="feature-tag"><span class="count">12</span> Forme UCL</div>
+          <div class="feature-tag"><span class="count">10</span> Classement</div>
+          <div class="feature-tag"><span class="count">9</span> Domestic</div>
+          <div class="feature-tag"><span class="count">6</span> Phase</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title"><span class="card-title-icon">◎</span> Derniers matchs UCL</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Phase</th>
+                <th>Domicile</th>
+                <th style="text-align:center">Score</th>
+                <th>Extérieur</th>
+                <th>Rés.</th>
+              </tr>
+            </thead>
+            <tbody id="recent-matches-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section 2: Prédiction ── -->
+  <section id="prediction" class="section">
+    <div class="prediction-header">
+      <div class="star-pattern" id="star-pattern"></div>
+      <div class="prediction-title">UEFA Champions League 2024/25</div>
+      <div class="prediction-main-title">Probabilité de remporter la UCL 2024/25</div>
+      <div class="prediction-sub">Simulation basée sur le modèle Gradient Boosting · CV Accuracy 61.4%</div>
+    </div>
+
+    <div class="two-col" style="align-items:start">
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title"><span class="card-title-icon">★</span> Classement des probabilités</div>
+        <div class="prob-list" id="prob-list"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title"><span class="card-title-icon">◈</span> Bracket simulé</div>
+        <div class="bracket-container">
+          <div class="bracket" id="bracket"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section 3: Équipes ── -->
+  <section id="teams" class="section">
+    <div class="section-header">
+      <div class="section-title">Explorateur d'équipes</div>
+      <div class="section-sub">Statistiques détaillées et forme récente pour chaque équipe</div>
+    </div>
+
+    <div class="team-selector-wrap">
+      <select id="team-select" onchange="renderTeam()">
+        <option value="">— Sélectionner une équipe —</option>
+      </select>
+    </div>
+
+    <div id="team-details" style="display:none">
+      <div class="team-header">
+        <div class="team-avatar" id="team-avatar">RMA</div>
+        <div>
+          <div class="team-info-name" id="team-name">Real Madrid CF</div>
+          <div class="team-info-meta" id="team-meta">Espagne · La Liga</div>
+        </div>
+        <div style="margin-left:auto; text-align:right">
+          <div style="font-size:28px; font-weight:800; color:var(--gold-light)" id="team-winprob">24%</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase">Prob. victoire UCL</div>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-ucl-pos">—</div>
+          <div class="stat-cell-label">UCL Rang</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-ucl-pts">—</div>
+          <div class="stat-cell-label">UCL Points</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-ucl-gd">—</div>
+          <div class="stat-cell-label">UCL Diff. Buts</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-dom-pos">—</div>
+          <div class="stat-cell-label">Rang Domestic</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-dom-pts">—</div>
+          <div class="stat-cell-label">Pts Domestic</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell-value" id="s-win-prob" style="color:var(--gold-light)">—</div>
+          <div class="stat-cell-label">Prob. Victoire</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">📈</span> Forme UCL — Points cumulés</div>
+          <div class="chart-container">
+            <canvas id="chart-form"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="card-title-icon">⚽</span> Domicile vs Extérieur</div>
+          <div class="chart-container">
+            <canvas id="chart-homeaway"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="card-title-icon">📋</span> 5 derniers matchs UCL</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Adversaire</th>
+                <th>Score</th>
+                <th>Phase</th>
+                <th>Résultat</th>
+              </tr>
+            </thead>
+            <tbody id="team-matches-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section 4: Classement ── -->
+  <section id="standings" class="section">
+    <div class="section-header">
+      <div class="section-title">Classement UCL</div>
+      <div class="section-sub">Phase de ligue 2024/25 — 8 matchs joués</div>
+    </div>
+
+    <div class="phase-filters" id="phase-filters">
+      <button class="filter-btn active" onclick="setPhaseFilter('all', this)">Tous</button>
+      <button class="filter-btn" onclick="setPhaseFilter('LEAGUE_STAGE', this)">Phase de ligue</button>
+      <button class="filter-btn" onclick="setPhaseFilter('PLAYOFFS', this)">Playoffs</button>
+      <button class="filter-btn" onclick="setPhaseFilter('ROUND_OF_16', this)">Huitièmes</button>
+      <button class="filter-btn" onclick="setPhaseFilter('QUARTER_FINALS', this)">Quarts</button>
+      <button class="filter-btn" onclick="setPhaseFilter('SEMI_FINALS', this)">Demi-finales</button>
+      <button class="filter-btn" onclick="setPhaseFilter('FINAL', this)">Finale</button>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden">
+      <div class="table-wrap">
+        <table id="standings-table">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortStandings('ucl_pos')" data-col="ucl_pos">Pos <span class="sort-indicator active" id="sort-ucl_pos">▲</span></th>
+              <th>Équipe</th>
+              <th class="sortable" onclick="sortStandings('ucl_pts')" data-col="ucl_pts" style="text-align:center">Pts <span class="sort-indicator" id="sort-ucl_pts"></span></th>
+              <th style="text-align:center">V</th>
+              <th style="text-align:center">N</th>
+              <th style="text-align:center">D</th>
+              <th style="text-align:center">BP</th>
+              <th style="text-align:center">BC</th>
+              <th class="sortable" onclick="sortStandings('ucl_gd')" data-col="ucl_gd" style="text-align:center">DB <span class="sort-indicator" id="sort-ucl_gd"></span></th>
+              <th class="sortable" onclick="sortStandings('win_prob')" data-col="win_prob" style="text-align:right; padding-right:16px">Prob. <span class="sort-indicator" id="sort-win_prob"></span></th>
+              <th>Forme</th>
+            </tr>
+          </thead>
+          <tbody id="standings-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section 5: Simulateur ── -->
+  <section id="simulator" class="section">
+    <div class="section-header">
+      <div class="section-title">Simulateur de match</div>
+      <div class="section-sub">Prédisez le résultat d'un match entre deux équipes qualifiées</div>
+    </div>
+
+    <div class="card">
+      <div class="sim-teams">
+        <div class="sim-select-wrap">
+          <div class="sim-select-label">🏠 Équipe domicile</div>
+          <select id="sim-home"></select>
+        </div>
+        <div class="vs-label">VS</div>
+        <div class="sim-select-wrap">
+          <div class="sim-select-label">✈ Équipe extérieure</div>
+          <select id="sim-away"></select>
+        </div>
+      </div>
+
+      <div class="error-msg" id="sim-error">Veuillez sélectionner deux équipes différentes.</div>
+
+      <button class="predict-btn" onclick="predictMatch()">
+        ⚡ Prédire le résultat
+      </button>
+
+      <div class="result-card" id="result-card">
+        <div class="result-outcome" id="result-outcome">—</div>
+
+        <div class="sim-prob-bars">
+          <div class="sim-prob-row">
+            <div class="sim-prob-label" id="sim-label-home">Victoire domicile</div>
+            <div class="sim-bar-wrap"><div class="sim-bar sim-bar-home" id="sim-bar-home"></div></div>
+            <div class="sim-pct" id="sim-pct-home">—</div>
+          </div>
+          <div class="sim-prob-row">
+            <div class="sim-prob-label">Match nul</div>
+            <div class="sim-bar-wrap"><div class="sim-bar sim-bar-draw" id="sim-bar-draw"></div></div>
+            <div class="sim-pct" id="sim-pct-draw">—</div>
+          </div>
+          <div class="sim-prob-row">
+            <div class="sim-prob-label" id="sim-label-away">Victoire extérieur</div>
+            <div class="sim-bar-wrap"><div class="sim-bar sim-bar-away" id="sim-bar-away"></div></div>
+            <div class="sim-pct" id="sim-pct-away">—</div>
+          </div>
+        </div>
+
+        <div class="confidence-badge" id="conf-badge"></div>
+
+        <table class="features-comparison">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th id="feat-home-header">Domicile</th>
+              <th id="feat-away-header">Extérieur</th>
+            </tr>
+          </thead>
+          <tbody id="features-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════
+const TEAMS = [
+  { name: "Real Madrid CF", short: "RMA", country: "Espagne", league: "La Liga",
+    ucl_pos: 1, ucl_pts: 22, ucl_gd: 15, ucl_gf: 26, ucl_ga: 11,
+    dom_pos: 1, dom_pts: 95, dom_gd: 65, win_prob: 24,
+    form: [3,3,1,3,3,3,1,3], form_home_pts: 2.4, form_away_pts: 1.8,
+    form_home_gf: 2.1, form_away_gf: 1.6 },
+  { name: "FC Bayern München", short: "FCB", country: "Allemagne", league: "Bundesliga",
+    ucl_pos: 2, ucl_pts: 19, ucl_gd: 12, ucl_gf: 22, ucl_ga: 10,
+    dom_pos: 1, dom_pts: 82, dom_gd: 51, win_prob: 17,
+    form: [3,3,3,1,0,3,3,3], form_home_pts: 2.2, form_away_pts: 1.9,
+    form_home_gf: 2.3, form_away_gf: 1.8 },
+  { name: "Manchester City FC", short: "MCI", country: "Angleterre", league: "Premier League",
+    ucl_pos: 3, ucl_pts: 18, ucl_gd: 10, ucl_gf: 20, ucl_ga: 10,
+    dom_pos: 4, dom_pts: 71, dom_gd: 32, win_prob: 14,
+    form: [3,0,3,3,1,3,3,0], form_home_pts: 2.1, form_away_pts: 1.5,
+    form_home_gf: 1.9, form_away_gf: 1.4 },
+  { name: "Paris Saint-Germain FC", short: "PSG", country: "France", league: "Ligue 1",
+    ucl_pos: 4, ucl_pts: 17, ucl_gd: 9, ucl_gf: 21, ucl_ga: 12,
+    dom_pos: 1, dom_pts: 91, dom_gd: 73, win_prob: 11,
+    form: [3,3,3,0,3,1,3,3], form_home_pts: 2.3, form_away_pts: 1.7,
+    form_home_gf: 2.0, form_away_gf: 1.5 },
+  { name: "Arsenal FC", short: "ARS", country: "Angleterre", league: "Premier League",
+    ucl_pos: 5, ucl_pts: 16, ucl_gd: 8, ucl_gf: 18, ucl_ga: 10,
+    dom_pos: 2, dom_pts: 77, dom_gd: 40, win_prob: 9,
+    form: [3,3,0,3,3,3,1,0], form_home_pts: 2.2, form_away_pts: 1.6,
+    form_home_gf: 1.8, form_away_gf: 1.3 },
+  { name: "Inter Milan", short: "INT", country: "Italie", league: "Serie A",
+    ucl_pos: 6, ucl_pts: 15, ucl_gd: 7, ucl_gf: 17, ucl_ga: 10,
+    dom_pos: 1, dom_pts: 94, dom_gd: 58, win_prob: 7,
+    form: [3,1,3,3,0,3,3,3], form_home_pts: 2.1, form_away_pts: 1.7,
+    form_home_gf: 1.7, form_away_gf: 1.4 },
+  { name: "FC Barcelona", short: "BAR", country: "Espagne", league: "La Liga",
+    ucl_pos: 7, ucl_pts: 14, ucl_gd: 6, ucl_gf: 16, ucl_ga: 10,
+    dom_pos: 2, dom_pts: 85, dom_gd: 52, win_prob: 6,
+    form: [1,3,3,3,0,3,1,3], form_home_pts: 2.0, form_away_pts: 1.5,
+    form_home_gf: 1.9, form_away_gf: 1.4 },
+  { name: "Atlético de Madrid", short: "ATM", country: "Espagne", league: "La Liga",
+    ucl_pos: 8, ucl_pts: 13, ucl_gd: 4, ucl_gf: 14, ucl_ga: 10,
+    dom_pos: 3, dom_pts: 79, dom_gd: 28, win_prob: 4,
+    form: [0,3,3,1,3,3,0,1], form_home_pts: 1.9, form_away_pts: 1.3,
+    form_home_gf: 1.5, form_away_gf: 1.1 },
+  { name: "Borussia Dortmund", short: "BVB", country: "Allemagne", league: "Bundesliga",
+    ucl_pos: 9, ucl_pts: 12, ucl_gd: 3, ucl_gf: 13, ucl_ga: 10,
+    dom_pos: 5, dom_pts: 62, dom_gd: 18, win_prob: 3,
+    form: [3,0,3,1,3,0,3,3], form_home_pts: 1.8, form_away_pts: 1.2,
+    form_home_gf: 1.6, form_away_gf: 1.2 },
+  { name: "Bayer 04 Leverkusen", short: "B04", country: "Allemagne", league: "Bundesliga",
+    ucl_pos: 10, ucl_pts: 11, ucl_gd: 2, ucl_gf: 12, ucl_ga: 10,
+    dom_pos: 2, dom_pts: 76, dom_gd: 38, win_prob: 2,
+    form: [3,3,0,3,1,0,3,1], form_home_pts: 1.7, form_away_pts: 1.4,
+    form_home_gf: 1.5, form_away_gf: 1.2 },
+  { name: "Juventus FC", short: "JUV", country: "Italie", league: "Serie A",
+    ucl_pos: 11, ucl_pts: 11, ucl_gd: 1, ucl_gf: 11, ucl_ga: 10,
+    dom_pos: 4, dom_pts: 68, dom_gd: 21, win_prob: 1,
+    form: [1,3,0,3,3,1,0,3], form_home_pts: 1.6, form_away_pts: 1.1,
+    form_home_gf: 1.3, form_away_gf: 0.9 },
+  { name: "Atalanta BC", short: "ATA", country: "Italie", league: "Serie A",
+    ucl_pos: 12, ucl_pts: 10, ucl_gd: 0, ucl_gf: 12, ucl_ga: 12,
+    dom_pos: 3, dom_pts: 72, dom_gd: 35, win_prob: 1,
+    form: [3,0,3,0,3,1,3,0], form_home_pts: 1.8, form_away_pts: 1.0,
+    form_home_gf: 1.7, form_away_gf: 1.1 },
+  { name: "AC Milan", short: "MIL", country: "Italie", league: "Serie A",
+    ucl_pos: 13, ucl_pts: 9, ucl_gd: -1, ucl_gf: 10, ucl_ga: 11,
+    dom_pos: 6, dom_pts: 58, dom_gd: 12, win_prob: 1,
+    form: [0,3,1,3,0,3,0,3], form_home_pts: 1.5, form_away_pts: 1.0,
+    form_home_gf: 1.4, form_away_gf: 1.0 },
+  { name: "Aston Villa FC", short: "AVL", country: "Angleterre", league: "Premier League",
+    ucl_pos: 14, ucl_pts: 8, ucl_gd: -2, ucl_gf: 9, ucl_ga: 11,
+    dom_pos: 7, dom_pts: 55, dom_gd: 10, win_prob: 0.5,
+    form: [3,0,3,0,1,3,0,3], form_home_pts: 1.6, form_away_pts: 0.9,
+    form_home_gf: 1.3, form_away_gf: 0.9 },
+  { name: "SL Benfica", short: "SLB", country: "Portugal", league: "Primeira Liga",
+    ucl_pos: 15, ucl_pts: 7, ucl_gd: -3, ucl_gf: 8, ucl_ga: 11,
+    dom_pos: 1, dom_pts: 0, dom_gd: 0, win_prob: 0.3,
+    form: [0,3,0,3,1,0,3,0], form_home_pts: 1.4, form_away_pts: 0.8,
+    form_home_gf: 1.2, form_away_gf: 0.8 },
+  { name: "PSV Eindhoven", short: "PSV", country: "Pays-Bas", league: "Eredivisie",
+    ucl_pos: 16, ucl_pts: 6, ucl_gd: -4, ucl_gf: 7, ucl_ga: 11,
+    dom_pos: 1, dom_pts: 0, dom_gd: 0, win_prob: 0.2,
+    form: [3,0,0,3,0,1,0,3], form_home_pts: 1.3, form_away_pts: 0.7,
+    form_home_gf: 1.1, form_away_gf: 0.8 },
+];
+
+const RECENT_MATCHES = [
+  { date: "2025-04-15", phase: "SEMI_FINALS", home: "Real Madrid CF", away: "Arsenal FC", home_g: 2, away_g: 1 },
+  { date: "2025-04-15", phase: "SEMI_FINALS", home: "PSG", away: "Inter Milan", home_g: 2, away_g: 1 },
+  { date: "2025-04-09", phase: "SEMI_FINALS", home: "Arsenal FC", away: "Real Madrid CF", home_g: 0, away_g: 2 },
+  { date: "2025-04-09", phase: "SEMI_FINALS", home: "Inter Milan", away: "PSG", home_g: 0, away_g: 2 },
+  { date: "2025-04-02", phase: "QUARTER_FINALS", home: "Atlético de Madrid", away: "Real Madrid CF", home_g: 1, away_g: 3 },
+  { date: "2025-04-02", phase: "QUARTER_FINALS", home: "Inter Milan", away: "FC Bayern München", home_g: 1, away_g: 0 },
+  { date: "2025-04-01", phase: "QUARTER_FINALS", home: "Bayer 04 Leverkusen", away: "Arsenal FC", home_g: 0, away_g: 2 },
+  { date: "2025-04-01", phase: "QUARTER_FINALS", home: "Manchester City FC", away: "Paris Saint-Germain FC", home_g: 1, away_g: 2 },
+];
+
+// Phase display names
+const PHASE_NAMES = {
+  LEAGUE_STAGE: "Ligue",
+  PLAYOFFS: "Playoffs",
+  ROUND_OF_16: "Huitièmes",
+  QUARTER_FINALS: "Quarts",
+  SEMI_FINALS: "Demies",
+  FINAL: "Finale"
+};
+
+// Teams that reached each phase (for highlighting)
+const PHASE_TEAMS = {
+  all: TEAMS.map(t => t.name),
+  LEAGUE_STAGE: TEAMS.map(t => t.name),
+  PLAYOFFS: ["Real Madrid CF","FC Bayern München","Manchester City FC","Paris Saint-Germain FC","Arsenal FC","Inter Milan","FC Barcelona","Atlético de Madrid","Borussia Dortmund","Bayer 04 Leverkusen","Juventus FC","Atalanta BC"],
+  ROUND_OF_16: ["Real Madrid CF","FC Bayern München","Manchester City FC","Paris Saint-Germain FC","Arsenal FC","Inter Milan","FC Barcelona","Atlético de Madrid"],
+  QUARTER_FINALS: ["Real Madrid CF","FC Bayern München","Manchester City FC","Paris Saint-Germain FC","Arsenal FC","Inter Milan","Atlético de Madrid","Bayer 04 Leverkusen"],
+  SEMI_FINALS: ["Real Madrid CF","Paris Saint-Germain FC","Arsenal FC","Inter Milan"],
+  FINAL: ["Real Madrid CF","Paris Saint-Germain FC"]
+};
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+const chartInstances = {};
+const sectionInit = {};
+let currentSort = { col: 'ucl_pos', asc: true };
+let currentPhaseFilter = 'all';
+
+// ══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById(id).classList.add('active');
+  const navItems = document.querySelectorAll('.nav-item');
+  const order = ['overview','prediction','teams','standings','simulator'];
+  navItems[order.indexOf(id)].classList.add('active');
+
+  // Lazy init charts
+  if (!sectionInit[id]) {
+    sectionInit[id] = true;
+    if (id === 'prediction') initPrediction();
+    if (id === 'standings') initStandings();
+    if (id === 'teams') { /* charts init on team select */ }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════════
+function formDot(pts) {
+  if (pts === 3) return `<span class="result-dot dot-W" title="Victoire (3pts)"></span>`;
+  if (pts === 1) return `<span class="result-dot dot-D" title="Nul (1pt)"></span>`;
+  return `<span class="result-dot dot-L" title="Défaite (0pt)"></span>`;
+}
+
+function phaseBadge(phase) {
+  const label = PHASE_NAMES[phase] || phase;
+  return `<span class="phase-tag phase-${phase}">${label}</span>`;
+}
+
+function resultBadge(h, a, isHome) {
+  if (h === a) return `<span class="result-badge badge-D">N</span>`;
+  if (isHome) return h > a ? `<span class="result-badge badge-W">V</span>` : `<span class="result-badge badge-L">D</span>`;
+  return a > h ? `<span class="result-badge badge-W">V</span>` : `<span class="result-badge badge-L">D</span>`;
+}
+
+function teamByName(name) {
+  return TEAMS.find(t => t.name === name || t.name.includes(name) || name.includes(t.short));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECTION 1: OVERVIEW
+// ══════════════════════════════════════════════════════════════════
+function initOverview() {
+  // Recent matches table
+  const tbody = document.getElementById('recent-matches-tbody');
+  tbody.innerHTML = RECENT_MATCHES.map(m => {
+    const homeResult = resultBadge(m.home_g, m.away_g, true);
+    return `<tr>
+      <td class="td-num">${m.date.slice(5)}</td>
+      <td>${phaseBadge(m.phase)}</td>
+      <td class="td-team">${m.home}</td>
+      <td style="text-align:center; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text-primary)">${m.home_g} – ${m.away_g}</td>
+      <td class="td-team">${m.away}</td>
+      <td>${homeResult}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECTION 2: PREDICTION
+// ══════════════════════════════════════════════════════════════════
+function initPrediction() {
+  // Star pattern
+  const pattern = document.getElementById('star-pattern');
+  for (let i = 0; i < 40; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() * 2 + 1;
+    star.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${-Math.random()*4}s`;
+    pattern.appendChild(star);
+  }
+
+  // Probability bars
+  const maxProb = Math.max(...TEAMS.map(t => t.win_prob));
+  const list = document.getElementById('prob-list');
+  const sorted = [...TEAMS].sort((a,b) => b.win_prob - a.win_prob);
+
+  list.innerHTML = sorted.map((t, i) => `
+    <div class="prob-item">
+      <div class="prob-rank">${i+1}</div>
+      <div class="prob-name">${t.name}</div>
+      <div class="prob-bar-wrap">
+        <div class="prob-bar ${i === 0 ? 'gold' : 'blue'}" id="pbar-${i}" style="width:0%"></div>
+      </div>
+      <div class="prob-pct">${t.win_prob}%</div>
+    </div>
+  `).join('');
+
+  // Animate bars after a short delay
+  setTimeout(() => {
+    sorted.forEach((t, i) => {
+      const bar = document.getElementById(`pbar-${i}`);
+      if (bar) bar.style.width = `${(t.win_prob / maxProb) * 100}%`;
+    });
+  }, 100);
+
+  // Bracket
+  renderBracket();
+}
+
+function renderBracket() {
+  const QF = [
+    { home: "Real Madrid CF", away: "Atlético de Madrid", home_g: 3, away_g: 1 },
+    { home: "Arsenal FC", away: "Bayer 04 Leverkusen", home_g: 2, away_g: 0 },
+    { home: "PSG", away: "Manchester City FC", home_g: 2, away_g: 1 },
+    { home: "Inter Milan", away: "FC Bayern München", home_g: 1, away_g: 0 },
+  ];
+  const SF = [
+    { home: "Real Madrid CF", away: "Arsenal FC", home_g: 2, away_g: 1 },
+    { home: "PSG", away: "Inter Milan", home_g: 2, away_g: 1 },
+  ];
+  const FIN = [
+    { home: "Real Madrid CF", away: "PSG", home_g: 2, away_g: 1 },
+  ];
+
+  function matchHtml(m, isFinal) {
+    const homeWin = m.home_g > m.away_g;
+    return `<div class="bracket-match ${isFinal ? 'bracket-final-match' : ''}">
+      <div class="bracket-team ${homeWin ? 'winner' : 'loser'}">
+        <span>${m.home}</span>
+        <span class="bracket-score">${m.home_g}</span>
+      </div>
+      <div class="bracket-team ${!homeWin ? 'winner' : 'loser'}">
+        <span>${m.away}</span>
+        <span class="bracket-score">${m.away_g}</span>
+      </div>
+    </div>`;
+  }
+
+  const bracket = document.getElementById('bracket');
+  bracket.innerHTML = `
+    <div class="bracket-round">
+      <div class="bracket-round-title">Quarts de finale</div>
+      <div class="bracket-matches">
+        ${QF.map(m => matchHtml(m, false)).join('')}
+      </div>
+    </div>
+    <div style="width:20px;flex-shrink:0"></div>
+    <div class="bracket-round">
+      <div class="bracket-round-title">Demi-finales</div>
+      <div class="bracket-matches" style="justify-content:space-around">
+        ${SF.map(m => matchHtml(m, false)).join('')}
+      </div>
+    </div>
+    <div style="width:20px;flex-shrink:0"></div>
+    <div class="bracket-round bracket-final">
+      <div class="bracket-round-title" style="color:var(--gold-light)">⭐ Finale</div>
+      <div class="bracket-matches" style="justify-content:center">
+        ${FIN.map(m => matchHtml(m, true)).join('')}
+      </div>
+    </div>
+  `;
+
+  // Style final match
+  const finalMatch = bracket.querySelector('.bracket-final .bracket-match');
+  if (finalMatch) {
+    finalMatch.style.borderColor = 'var(--gold)';
+    finalMatch.style.boxShadow = '0 0 16px rgba(217,119,6,0.2)';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECTION 3: TEAM EXPLORER
+// ══════════════════════════════════════════════════════════════════
+function initTeamSelector() {
+  const sel = document.getElementById('team-select');
+  const simHome = document.getElementById('sim-home');
+  const simAway = document.getElementById('sim-away');
+
+  TEAMS.forEach(t => {
+    sel.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+    simHome.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+    simAway.innerHTML += `<option value="${t.name}">${t.name}</option>`;
+  });
+
+  // Default away to second team
+  if (simAway.options.length > 1) simAway.selectedIndex = 1;
+}
+
+function renderTeam() {
+  const name = document.getElementById('team-select').value;
+  if (!name) return;
+
+  const t = TEAMS.find(t => t.name === name);
+  if (!t) return;
+
+  document.getElementById('team-details').style.display = 'block';
+  document.getElementById('team-avatar').textContent = t.short;
+  document.getElementById('team-name').textContent = t.name;
+  document.getElementById('team-meta').textContent = `${t.country} · ${t.league}`;
+  document.getElementById('team-winprob').textContent = `${t.win_prob}%`;
+
+  document.getElementById('s-ucl-pos').textContent = `#${t.ucl_pos}`;
+  document.getElementById('s-ucl-pts').textContent = t.ucl_pts;
+  document.getElementById('s-ucl-gd').textContent = (t.ucl_gd >= 0 ? '+' : '') + t.ucl_gd;
+  document.getElementById('s-dom-pos').textContent = `#${t.dom_pos}`;
+  document.getElementById('s-dom-pts').textContent = t.dom_pts || '—';
+  document.getElementById('s-win-prob').textContent = `${t.win_prob}%`;
+
+  // Color GD
+  const gdEl = document.getElementById('s-ucl-gd');
+  gdEl.style.color = t.ucl_gd > 0 ? 'var(--green)' : t.ucl_gd < 0 ? 'var(--red)' : 'var(--text-primary)';
+
+  renderFormChart(t);
+  renderHomeAwayChart(t);
+  renderTeamMatches(t);
+}
+
+function renderFormChart(t) {
+  const canvas = document.getElementById('chart-form');
+  if (chartInstances['form']) chartInstances['form'].destroy();
+
+  const cumulative = [];
+  let sum = 0;
+  t.form.forEach(p => { sum += p; cumulative.push(sum); });
+
+  chartInstances['form'] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: t.form.map((_, i) => `M${i+1}`),
+      datasets: [{
+        label: 'Points cumulés',
+        data: cumulative,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: t.form.map(p => p===3?'#22c55e':p===1?'#eab308':'#ef4444'),
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        borderWidth: 2.5,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderHomeAwayChart(t) {
+  const canvas = document.getElementById('chart-homeaway');
+  if (chartInstances['homeaway']) chartInstances['homeaway'].destroy();
+
+  chartInstances['homeaway'] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: ['Moy. Buts', 'Moy. Points'],
+      datasets: [
+        {
+          label: 'Domicile',
+          data: [t.form_home_gf, t.form_home_pts],
+          backgroundColor: 'rgba(37,99,235,0.7)',
+          borderColor: '#2563eb',
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Extérieur',
+          data: [t.form_away_gf, t.form_away_pts],
+          backgroundColor: 'rgba(217,119,6,0.7)',
+          borderColor: '#d97706',
+          borderWidth: 1,
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12, padding: 16 }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e', font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderTeamMatches(t) {
+  // Find relevant recent matches
+  const teamMatches = RECENT_MATCHES.filter(m =>
+    m.home === t.name || m.away === t.name ||
+    m.home.includes(t.short) || m.away.includes(t.short) ||
+    (t.name.includes('PSG') && (m.home === 'PSG' || m.away === 'PSG'))
+  ).slice(0, 5);
+
+  const tbody = document.getElementById('team-matches-tbody');
+
+  if (teamMatches.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">Aucun match récent disponible</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = teamMatches.map(m => {
+    const isHome = (m.home === t.name || m.home.includes(t.short) || (t.name.includes('PSG') && m.home === 'PSG'));
+    const opponent = isHome ? m.away : m.home;
+    const score = isHome ? `${m.home_g}–${m.away_g}` : `${m.away_g}–${m.home_g}`;
+    const badge = resultBadge(m.home_g, m.away_g, isHome);
+
+    return `<tr>
+      <td class="td-team">${opponent}</td>
+      <td style="font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-primary)">${score}</td>
+      <td>${phaseBadge(m.phase)}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECTION 4: STANDINGS
+// ══════════════════════════════════════════════════════════════════
+function initStandings() {
+  renderStandings();
+}
+
+function computeWDL(form) {
+  let W=0, D=0, L=0;
+  form.forEach(p => { if(p===3)W++; else if(p===1)D++; else L++; });
+  return { W, D, L };
+}
+
+function renderStandings() {
+  const tbody = document.getElementById('standings-tbody');
+  const highlighted = PHASE_TEAMS[currentPhaseFilter] || TEAMS.map(t => t.name);
+
+  const sorted = [...TEAMS].sort((a,b) => {
+    const va = a[currentSort.col];
+    const vb = b[currentSort.col];
+    return currentSort.asc ? va - vb : vb - va;
+  });
+
+  tbody.innerHTML = sorted.map((t, i) => {
+    const { W, D, L } = computeWDL(t.form);
+    const isHighlighted = highlighted.includes(t.name);
+    const posClass = t.ucl_pos === 1 ? 'pos-gold' : t.ucl_pos === 2 ? 'pos-silver' : t.ucl_pos === 3 ? 'pos-bronze' : '';
+    const last5 = t.form.slice(-5);
+    const formHtml = `<div class="form-dots">${last5.map(formDot).join('')}</div>`;
+    const gdStr = (t.ucl_gd >= 0 ? '+' : '') + t.ucl_gd;
+    const gdColor = t.ucl_gd > 0 ? 'color:var(--green)' : t.ucl_gd < 0 ? 'color:var(--red)' : '';
+
+    return `<tr class="${isHighlighted && currentPhaseFilter !== 'all' ? 'highlighted' : ''}">
+      <td class="td-num ${posClass}" style="font-weight:700;width:40px">${t.ucl_pos}</td>
+      <td class="td-team" style="min-width:180px">${t.name}</td>
+      <td class="td-num" style="text-align:center;font-weight:700;color:var(--text-primary)">${t.ucl_pts}</td>
+      <td class="td-num" style="text-align:center;color:var(--green)">${W}</td>
+      <td class="td-num" style="text-align:center;color:var(--yellow)">${D}</td>
+      <td class="td-num" style="text-align:center;color:var(--red)">${L}</td>
+      <td class="td-num" style="text-align:center">${t.ucl_gf}</td>
+      <td class="td-num" style="text-align:center">${t.ucl_ga}</td>
+      <td class="td-num" style="text-align:center;${gdColor};font-weight:600">${gdStr}</td>
+      <td class="td-num" style="text-align:right;padding-right:16px;color:var(--gold-light);font-weight:700">${t.win_prob}%</td>
+      <td>${formHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function sortStandings(col) {
+  if (currentSort.col === col) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort.col = col;
+    currentSort.asc = col === 'ucl_pos';
+  }
+
+  // Update sort indicators
+  document.querySelectorAll('.sort-indicator').forEach(el => {
+    el.classList.remove('active');
+    el.textContent = '';
+  });
+
+  const indicator = document.getElementById(`sort-${col}`);
+  if (indicator) {
+    indicator.classList.add('active');
+    indicator.textContent = currentSort.asc ? '▲' : '▼';
+  }
+
+  renderStandings();
+}
+
+function setPhaseFilter(phase, btn) {
+  currentPhaseFilter = phase;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStandings();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SECTION 5: SIMULATOR
+// ══════════════════════════════════════════════════════════════════
+function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+function teamScore(t) {
+  return (t.ucl_pts * 0.4) + ((36 - t.ucl_pos) * 0.3) + (t.dom_pts / 100 * 0.3);
+}
+
+function predictMatch() {
+  const homeName = document.getElementById('sim-home').value;
+  const awayName = document.getElementById('sim-away').value;
+  const errEl = document.getElementById('sim-error');
+  const card = document.getElementById('result-card');
+
+  if (homeName === awayName) {
+    errEl.style.display = 'block';
+    card.classList.remove('visible');
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const home = TEAMS.find(t => t.name === homeName);
+  const away = TEAMS.find(t => t.name === awayName);
+  if (!home || !away) return;
+
+  const hs = teamScore(home);
+  const as = teamScore(away);
+  const diff = hs - as + 5;
+
+  const homeWinProb = sigmoid(diff * 0.15);
+  const rawDraw = 0.25 * (1 - Math.abs(homeWinProb - 0.5) * 2);
+  const drawProb = Math.max(0.05, rawDraw);
+  const awayWinProb = Math.max(0, 1 - homeWinProb - drawProb);
+
+  // Normalize to sum to 1
+  const total = homeWinProb + drawProb + awayWinProb;
+  const hProb = homeWinProb / total;
+  const dProb = drawProb / total;
+  const aProb = awayWinProb / total;
+
+  // Determine outcome
+  let outcome;
+  if (hProb > aProb && hProb > dProb) outcome = `Victoire ${home.name}`;
+  else if (aProb > hProb && aProb > dProb) outcome = `Victoire ${away.name}`;
+  else outcome = 'Match nul probable';
+
+  document.getElementById('result-outcome').textContent = outcome;
+  document.getElementById('sim-label-home').textContent = `Victoire ${home.name}`;
+  document.getElementById('sim-label-away').textContent = `Victoire ${away.name}`;
+  document.getElementById('feat-home-header').textContent = home.name;
+  document.getElementById('feat-away-header').textContent = away.name;
+
+  // Show card first (bars start at 0)
+  card.classList.add('visible');
+
+  // Animate bars after frame
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      document.getElementById('sim-bar-home').style.width = `${hProb * 100}%`;
+      document.getElementById('sim-bar-draw').style.width = `${dProb * 100}%`;
+      document.getElementById('sim-bar-away').style.width = `${aProb * 100}%`;
+    }, 50);
+  });
+
+  document.getElementById('sim-pct-home').textContent = `${(hProb * 100).toFixed(1)}%`;
+  document.getElementById('sim-pct-draw').textContent = `${(dProb * 100).toFixed(1)}%`;
+  document.getElementById('sim-pct-away').textContent = `${(aProb * 100).toFixed(1)}%`;
+
+  // Confidence badge
+  const ptsDiff = Math.abs(home.ucl_pts - away.ucl_pts);
+  let confClass, confLabel, confIcon;
+  if (ptsDiff >= 8) { confClass = 'conf-high'; confLabel = 'Confiance Haute'; confIcon = '●'; }
+  else if (ptsDiff >= 4) { confClass = 'conf-medium'; confLabel = 'Confiance Moyenne'; confIcon = '◐'; }
+  else { confClass = 'conf-low'; confLabel = 'Confiance Basse'; confIcon = '○'; }
+
+  const confBadge = document.getElementById('conf-badge');
+  confBadge.className = `confidence-badge ${confClass}`;
+  confBadge.innerHTML = `${confIcon} ${confLabel}`;
+
+  // Feature comparison
+  const tbody = document.getElementById('features-tbody');
+  const formPtsH = home.form.slice(-5).reduce((a,b)=>a+b,0);
+  const formPtsA = away.form.slice(-5).reduce((a,b)=>a+b,0);
+
+  const rows = [
+    { label: 'Rang UCL', hv: `#${home.ucl_pos}`, av: `#${away.ucl_pos}`, betterH: home.ucl_pos < away.ucl_pos },
+    { label: 'Rang Domestic', hv: `#${home.dom_pos}`, av: `#${away.dom_pos}`, betterH: home.dom_pos < away.dom_pos },
+    { label: 'Pts UCL (phase)', hv: home.ucl_pts, av: away.ucl_pts, betterH: home.ucl_pts > away.ucl_pts },
+    { label: 'Forme récente (5M)', hv: `${formPtsH} pts`, av: `${formPtsA} pts`, betterH: formPtsH > formPtsA },
+    { label: 'Diff. de buts UCL', hv: (home.ucl_gd>=0?'+':'')+home.ucl_gd, av: (away.ucl_gd>=0?'+':'')+away.ucl_gd, betterH: home.ucl_gd > away.ucl_gd },
+    { label: 'Avantage domicile', hv: '✓ Domicile', av: '✗ Extérieur', betterH: true },
+  ];
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td style="color:var(--text-muted);font-weight:600">${r.label}</td>
+    <td class="${r.betterH ? 'feat-better' : ''}">${r.hv}</td>
+    <td class="${!r.betterH ? 'feat-better' : ''}">${r.av}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initOverview();
+  initTeamSelector();
+  // Overview is visible by default, no charts there
+});
+</script>
+</body>
+</html>
