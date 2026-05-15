@@ -1,4 +1,21 @@
-data/
+# Secrets
+.env
+
+# Données — jamais versionnées (trop lourdes, soumises aux CGU API)
+data/raw/
+data/db/
+
+# Modèles entraînés — reproductibles via le pipeline
+models/*.pkl
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
